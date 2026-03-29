@@ -1,0 +1,48 @@
+name: Daily Finance Newsletter
+
+on:
+  schedule:
+    # Runs at 07:00 UTC every day. Adjust this cron expression to your timezone.
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allows manual trigger from the Actions tab
+
+jobs:
+  run-newsletter:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install Playwright Chromium
+        run: uv run playwright install chromium
+
+      # Restore history.json from cache to prevent duplicate articles across days
+      - name: Restore history cache
+        uses: actions/cache@v4
+        with:
+          path: history.json
+          key: history-${{ github.run_id }}
+          restore-keys: |
+            history-
+
+      - name: Run Pipeline
+        env:
+          # Configuration stored as GitHub Repository Variables (non-sensitive)
+          NEWS_SOURCES: ${{ vars.NEWS_SOURCES }}
+          INVESTMENT_FOCUS: ${{ vars.INVESTMENT_FOCUS }}
+          SUBSCRIBER_EMAIL: ${{ vars.SUBSCRIBER_EMAIL }}
+          
+          # Configuration stored as GitHub Repository Secrets (sensitive)
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: uv run python main.py
