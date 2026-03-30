@@ -1,35 +1,64 @@
 import json
 import os
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "history.json")
+
+# Maps each provider name to the environment variable that holds its API key
+_PROVIDER_KEY_ENV = {
+    "gemini": "GEMINI_API_KEY",
+    "claude": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "groq":   "GROQ_API_KEY",
+}
 
 def load_config() -> dict:
     """
     Load configuration directly from environment variables.
     This is designed to run seamlessly in GitHub Actions.
     """
+    provider = os.environ.get("AI_PROVIDER", "gemini").lower()
+
+    if provider not in _PROVIDER_KEY_ENV:
+        raise ValueError(
+            f"AI_PROVIDER '{provider}' is not supported. "
+            f"Must be one of: {', '.join(_PROVIDER_KEY_ENV)}"
+        )
+
+    api_key_env = _PROVIDER_KEY_ENV[provider]
+
     cfg = {
         "urls": [url.strip() for url in os.environ.get("NEWS_SOURCES", "").split(",") if url.strip()],
         "topics": os.environ.get("INVESTMENT_FOCUS", ""),
         "subscriber_email": os.environ.get("SUBSCRIBER_EMAIL", ""),
-        "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
-        "resend_api_key": os.environ.get("RESEND_API_KEY", "")
+        "ai_provider": provider,
+        "ai_api_key": os.environ.get(api_key_env, ""),
+        "resend_api_key": os.environ.get("RESEND_API_KEY", ""),
     }
 
-    required_keys = ("urls", "topics", "subscriber_email", "gemini_api_key", "resend_api_key")
-    missing = [k for k in required_keys if not cfg.get(k)]
-    
-    if missing:
+    # Build a human-readable list of missing env vars
+    missing_env_vars = []
+    if not cfg["urls"]:
+        missing_env_vars.append("NEWS_SOURCES")
+    if not cfg["topics"]:
+        missing_env_vars.append("INVESTMENT_FOCUS")
+    if not cfg["subscriber_email"]:
+        missing_env_vars.append("SUBSCRIBER_EMAIL")
+    if not cfg["ai_api_key"]:
+        missing_env_vars.append(api_key_env)
+    if not cfg["resend_api_key"]:
+        missing_env_vars.append("RESEND_API_KEY")
+
+    if missing_env_vars:
         raise ValueError(
-            f"Missing required environment variables: {', '.join(missing)}. "
+            f"Missing required environment variables: {', '.join(missing_env_vars)}. "
             "Please configure these in your GitHub Repository Secrets and Variables."
         )
 
     return cfg
+
 
 def load_history(path: str = HISTORY_PATH) -> list[str]:
     """Load previously sent article URLs to avoid duplicates."""
@@ -41,10 +70,10 @@ def load_history(path: str = HISTORY_PATH) -> list[str]:
     except (json.JSONDecodeError, IOError):
         return []
 
+
 def save_history(urls: list[str], path: str = HISTORY_PATH) -> None:
     """Save newly sent article URLs to history."""
     existing = load_history(path)
-    # Use a set to maintain uniqueness, then list
     updated = list(set(existing + urls))
     with open(path, "w", encoding="utf-8") as f:
         json.dump(updated, f, indent=2)

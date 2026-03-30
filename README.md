@@ -19,21 +19,35 @@ It remembers which articles it already sent you, so you never read the same stor
 
 ## What You Need Before Starting
 
-You need **three free accounts** to run this project. Create them before following the setup steps below.
-
-### 1. Google Gemini API Key
-The AI brain of the newsletter. It reads your scraped articles and writes the summaries.
-
-- Go to [https://aistudio.google.com/](https://aistudio.google.com/)
-- Sign in with your Google account
-- Click **"Get API Key"** in the top left → **"Create API key"**
-- Copy the key — you will need it later
-
-> The free tier is generous enough to run this newsletter daily at no cost.
+You need accounts for **one AI provider of your choice**, plus Resend for email delivery, and GitHub to run the automation. All have free tiers sufficient for daily use.
 
 ---
 
-### 2. Resend API Key
+### Step 0 — Choose Your AI Provider
+
+The newsletter supports four AI providers. Pick one and get its API key.
+
+| Provider | Model Used | Free Tier | Get Your Key |
+|---|---|---|---|
+| **Google Gemini** (default) | Gemini 1.5 Flash | ~1,500 req/day | [aistudio.google.com](https://aistudio.google.com/) → Get API Key |
+| **Anthropic Claude** | Claude Haiku | Pay-as-you-go (very cheap) | [console.anthropic.com](https://console.anthropic.com/) → API Keys |
+| **OpenAI** | GPT-4o Mini | Pay-as-you-go (very cheap) | [platform.openai.com](https://platform.openai.com/) → API Keys |
+| **Groq** | Llama 3 70B | Free (rate-limited) | [console.groq.com](https://console.groq.com/) → API Keys |
+
+> Gemini and Groq both have free tiers that comfortably cover one newsletter per day at no cost. Claude and OpenAI charge per token but are extremely cheap for this use case (fractions of a cent per run).
+
+After getting your key, note the **Secret Name** you will use in GitHub — it depends on which provider you chose:
+
+| Provider | GitHub Secret Name |
+|---|---|
+| Google Gemini | `GEMINI_API_KEY` |
+| Anthropic Claude | `ANTHROPIC_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| Groq | `GROQ_API_KEY` |
+
+---
+
+### Resend API Key
 The service that sends the actual email to your inbox.
 
 - Go to [https://resend.com/](https://resend.com/) and create a free account
@@ -44,7 +58,7 @@ The service that sends the actual email to your inbox.
 
 ---
 
-### 3. A GitHub Account
+### A GitHub Account
 GitHub is where the code lives and where the automation runs (for free).
 
 - Go to [https://github.com/](https://github.com/) and create an account if you don't have one
@@ -90,12 +104,22 @@ GitHub Secrets are encrypted variables that your automation can read but no one 
 2. Click **Settings** (the gear icon in the top navigation bar of the repo)
 3. In the left sidebar, click **Secrets and variables** → **Actions**
 4. Click the **Secrets** tab
-5. Click **"New repository secret"** and add each of the following:
+5. Click **"New repository secret"** and add the following:
+
+**Required for everyone:**
+
+| Secret Name | Value |
+|---|---|
+| `RESEND_API_KEY` | Your Resend API key |
+
+**Required for your chosen AI provider (add only the one you chose):**
 
 | Secret Name | Value |
 |---|---|
 | `GEMINI_API_KEY` | Your Google Gemini API key |
-| `RESEND_API_KEY` | Your Resend API key |
+| `ANTHROPIC_API_KEY` | Your Anthropic Claude API key |
+| `OPENAI_API_KEY` | Your OpenAI API key |
+| `GROQ_API_KEY` | Your Groq API key |
 
 For each one: paste the name exactly as shown, paste your key as the value, and click **"Add secret"**.
 
@@ -111,9 +135,12 @@ Variables store non-sensitive settings. These are visible, so never put API keys
 
 | Variable Name | Example Value | Description |
 |---|---|---|
+| `AI_PROVIDER` | `gemini` | Which AI to use: `gemini`, `claude`, `openai`, or `groq` |
 | `NEWS_SOURCES` | `https://finance.yahoo.com/,https://www.cnbc.com/markets/` | Comma-separated list of financial news URLs to scrape |
 | `INVESTMENT_FOCUS` | `Tech stocks, AI, Semiconductors, Macro-economics` | Tells the AI what topics matter to you. The more specific, the better. |
 | `SUBSCRIBER_EMAIL` | `yourname@gmail.com` | The email address where the newsletter will be delivered |
+
+> If you don't add `AI_PROVIDER`, it defaults to `gemini`.
 
 > **Tip for NEWS_SOURCES:** Separate multiple URLs with commas and no spaces. Good sources include `https://finance.yahoo.com/`, `https://www.cnbc.com/markets/`, and `https://www.reuters.com/markets/`.
 
@@ -184,8 +211,11 @@ Edit the `SUBSCRIBER_EMAIL` variable. Note the Resend free-tier restriction ment
 
 | Service | Free Tier | Notes |
 |---|---|---|
-| Google Gemini API | ~1,500 requests/day free | Running once daily uses 1 request |
+| Google Gemini API | ~1,500 requests/day free | Best free option for the AI step |
+| Anthropic Claude | No free tier | ~$0.001 per newsletter run (Haiku pricing) |
+| OpenAI | No free tier | ~$0.001 per newsletter run (GPT-4o Mini pricing) |
+| Groq | Free (rate-limited) | Best free option if you want an open-source model |
 | Resend | 3,000 emails/month free | Running daily uses ~30 emails/month |
 | GitHub Actions | 2,000 minutes/month free | Each run uses ~3 minutes |
 
-Running this project costs **$0** on the free tiers of all three services.
+Running this project with **Gemini or Groq** costs **$0**. With Claude or OpenAI, expect less than **$0.05/month**.

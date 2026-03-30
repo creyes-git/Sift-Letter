@@ -2,7 +2,7 @@ name: Daily Finance Newsletter
 
 on:
   schedule:
-    # Runs at 07:00 UTC every day. Adjust this cron expression to your timezone.
+    # Runs at 12:00 UTC every day. Adjust this cron expression to your timezone.
     - cron: '0 12 * * *'
   workflow_dispatch: # Allows manual trigger from the Actions tab
 
@@ -37,12 +37,18 @@ jobs:
 
       - name: Run Pipeline
         env:
-          # Configuration stored as GitHub Repository Variables (non-sensitive)
+          # ── Non-sensitive configuration (GitHub Repository Variables) ────────
           NEWS_SOURCES: ${{ vars.NEWS_SOURCES }}
           INVESTMENT_FOCUS: ${{ vars.INVESTMENT_FOCUS }}
           SUBSCRIBER_EMAIL: ${{ vars.SUBSCRIBER_EMAIL }}
-          
-          # Configuration stored as GitHub Repository Secrets (sensitive)
+          # Set to: gemini | claude | openai | groq  (default: gemini)
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+
+          # ── API Keys (GitHub Repository Secrets) ─────────────────────────────
+          # Only the key for your chosen AI_PROVIDER is required.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: uv run python main.py
