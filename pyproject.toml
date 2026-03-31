@@ -9,6 +9,7 @@ dependencies = [
     "google-generativeai>=0.8.6",
     "groq>=0.18.0",
     "openai>=1.75.0",
+    "playwright>=1.49.0",
     "resend>=2.26.0",
     "scrapling>=0.4.2",
     "yfinance>=1.2.0",
