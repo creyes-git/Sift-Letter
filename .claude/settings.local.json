@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip index:*)",
+      "Bash(pip show:*)",
+      "Bash(uv lock:*)",
+      "Bash(uv run:*)"
+    ]
+  }
+}
