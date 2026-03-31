@@ -26,8 +26,7 @@ jobs:
 
       - name: Install Playwright Chromium
         run: |
-          uv run python -m playwright install chromium
-          uv run python -m playwright install-deps chromium
+          uv run python -m playwright install --with-deps chromium
 
       # Restore history.json from cache to prevent duplicate articles across days
       - name: Restore history cache
