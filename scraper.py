@@ -17,8 +17,11 @@ logger = logging.getLogger(__name__)
 
 _JUNK_KEYWORDS = frozenset([
     "login", "subscribe", "newsletter", "about", "contact",
-    "privacy", "terms", "policy", "author", "video", "podcasts",
+    "privacy", "terms", "policy", "author", "authors", "video", "podcasts",
+    "tag", "category", "search", "feed", "rss", "sitemap",
 ])
+
+_MIN_TITLE_LEN = 25
 
 
 def _extract_domain(url: str) -> str:
@@ -38,6 +41,7 @@ def fetch_news(urls: list[str]) -> list[dict]:
         A list of dicts with keys: 'title', 'link', 'source'.
     """
     articles: list[dict] = []
+    seen_hrefs: set[str] = set()  # global dedup across all sources
 
     for url in urls:
         logger.info("Fetching: %s", url)
@@ -61,8 +65,6 @@ def fetch_news(urls: list[str]) -> list[dict]:
             logger.error("Failed to parse %s: %s", url, exc)
             continue
 
-        seen_hrefs: set[str] = set()
-
         for anchor in links:
             # Grab the visible text content of the <a> tag
             title = anchor.text.strip() if anchor.text else ""
@@ -84,7 +86,7 @@ def fetch_news(urls: list[str]) -> list[dict]:
             seen_hrefs.add(href)
 
             # Basic quality filter: skip very short titles (nav items, etc.)
-            if len(title) < 25:
+            if len(title) < _MIN_TITLE_LEN:
                 continue
                 
             # Heuristic to filter out non-article links like "Log In", "About", "Contact"

@@ -20,20 +20,23 @@ def _impact_badge(score: int) -> str:
     return f'<span style="background:{color};color:#fff;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:bold;">IMPACT {score}/10</span>'
 
 def _render_market_snapshot(market_data: dict) -> str:
-    cards = []
+    cells = []
     for name, data in market_data.items():
         price = data.get("price", 0.0)
         pct = data.get("change_pct", 0.0)
+        unit = data.get("unit", "$")
         color = "#16a34a" if pct >= 0 else "#dc2626"
         sign = "+" if pct >= 0 else ""
-        cards.append(f"""
-        <div style="flex:1;min-width:120px;background:#f8fafc;padding:12px;border-radius:8px;margin:4px;text-align:center;border:1px solid #e2e8f0;">
+        price_str = f"{price:,.2f}{unit}" if unit == "%" else f"{unit}{price:,.2f}"
+        cells.append(f"""
+        <td style="width:25%;padding:4px;">
+          <div style="background:#f8fafc;padding:12px;border-radius:8px;text-align:center;border:1px solid #e2e8f0;">
             <div style="font-size:12px;color:#64748b;font-weight:bold;">{name}</div>
-            <div style="font-size:16px;color:#1e293b;font-weight:bold;margin:4px 0;">${price:,.2f}</div>
+            <div style="font-size:16px;color:#1e293b;font-weight:bold;margin:4px 0;">{price_str}</div>
             <div style="font-size:13px;color:{color};font-weight:bold;">{sign}{pct:.2f}%</div>
-        </div>
-        """)
-    return f'<div style="display:flex;flex-wrap:wrap;margin:0 -4px;">{"".join(cards)}</div>'
+          </div>
+        </td>""")
+    return f'<table width="100%" cellpadding="0" cellspacing="0"><tr>{"".join(cells)}</tr></table>'
 
 def _render_article(article: dict) -> str:
     title = html.escape(article.get("title", "Untitled"))
@@ -50,8 +53,7 @@ def _render_article(article: dict) -> str:
       <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;">{summary}</p>
     </div>"""
 
-def _build_html_email(curated_data: dict, market_data: dict, topics: str, ai_provider: str = "gemini") -> str:
-    today = datetime.now().strftime("%B %d, %Y")
+def _build_html_email(curated_data: dict, market_data: dict, topics: str, today: str, ai_provider: str = "gemini") -> str:
     sentiment = curated_data.get("market_sentiment", "Neutral")
     summary = curated_data.get("market_summary", "")
     categories = curated_data.get("categories", {})
@@ -93,10 +95,12 @@ def _build_html_email(curated_data: dict, market_data: dict, topics: str, ai_pro
           <!-- Market Snapshot -->
           <tr>
             <td style="padding:24px 40px;background:#ffffff;border-bottom:1px solid #e2e8f0;">
-              <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:14px;color:#64748b;font-weight:bold;text-transform:uppercase;">Market Snapshot</span>
-                {_sentiment_badge(sentiment)}
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                <tr>
+                  <td style="font-size:14px;color:#64748b;font-weight:bold;text-transform:uppercase;">Market Snapshot</td>
+                  <td align="right">{_sentiment_badge(sentiment)}</td>
+                </tr>
+              </table>
               {_render_market_snapshot(market_data)}
               <p style="margin:20px 0 0 0;font-size:15px;line-height:1.6;color:#334155;background:#f8fafc;padding:16px;border-left:4px solid #3b82f6;border-radius:4px;">
                 <strong>AI Market Summary:</strong> {summary}
@@ -141,7 +145,7 @@ def send_newsletter(curated_data: dict, market_data: dict, config: dict) -> None
     resend.api_key = api_key
     today = datetime.now().strftime("%B %d, %Y")
     ai_provider = config.get("ai_provider", "gemini")
-    html_body = _build_html_email(curated_data, market_data, topics, ai_provider)
+    html_body = _build_html_email(curated_data, market_data, topics, today, ai_provider)
 
     logger.info("Sending finance newsletter to %s via Resend...", to_email)
 

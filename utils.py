@@ -68,7 +68,7 @@ def load_history(path: str = HISTORY_PATH) -> list[str]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, OSError):
         return []
 
 
@@ -78,7 +78,10 @@ _MAX_HISTORY_SIZE = 1000
 def save_history(urls: list[str], path: str = HISTORY_PATH) -> None:
     """Save newly sent article URLs to history, capping at the most recent entries."""
     existing = load_history(path)
-    updated = list(set(existing + urls))
+    # Use dict.fromkeys to deduplicate while preserving insertion order,
+    # so the -_MAX_HISTORY_SIZE slice actually keeps the most-recent entries.
+    seen: dict[str, None] = dict.fromkeys(existing + urls)
+    updated = list(seen.keys())
     # Keep only the most recent entries to prevent unbounded growth
     if len(updated) > _MAX_HISTORY_SIZE:
         updated = updated[-_MAX_HISTORY_SIZE:]
