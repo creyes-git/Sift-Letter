@@ -34,6 +34,7 @@ def load_config() -> dict:
         "topics": os.environ.get("INVESTMENT_FOCUS", ""),
         "subscriber_email": os.environ.get("SUBSCRIBER_EMAIL", ""),
         "ai_provider": provider,
+        "ai_model": os.environ.get("AI_MODEL", "").strip(),  # Optional – falls back to provider default if empty or invalid
         "ai_api_key": os.environ.get(api_key_env, ""),
         "resend_api_key": os.environ.get("RESEND_API_KEY", ""),
     }
@@ -71,9 +72,15 @@ def load_history(path: str = HISTORY_PATH) -> list[str]:
         return []
 
 
+_MAX_HISTORY_SIZE = 1000
+
+
 def save_history(urls: list[str], path: str = HISTORY_PATH) -> None:
-    """Save newly sent article URLs to history."""
+    """Save newly sent article URLs to history, capping at the most recent entries."""
     existing = load_history(path)
     updated = list(set(existing + urls))
+    # Keep only the most recent entries to prevent unbounded growth
+    if len(updated) > _MAX_HISTORY_SIZE:
+        updated = updated[-_MAX_HISTORY_SIZE:]
     with open(path, "w", encoding="utf-8") as f:
         json.dump(updated, f, indent=2)

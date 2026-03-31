@@ -1,7 +1,7 @@
 [project]
 name = "sift-letter"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automated AI-powered finance newsletter that scrapes, curates, and delivers daily market digests"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

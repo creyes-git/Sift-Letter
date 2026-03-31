@@ -44,6 +44,11 @@ jobs:
           SUBSCRIBER_EMAIL: ${{ vars.SUBSCRIBER_EMAIL }}
           # Set to: gemini | claude | openai | groq  (default: gemini)
           AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          # Optional: override the model for your chosen provider.
+          # If empty or invalid, the pipeline falls back to the provider's default.
+          # gemini → gemini-2.5-flash  | claude → claude-haiku-4-5-20251001
+          # openai → gpt-4o-mini      | groq   → llama3-70b-8192
+          AI_MODEL: ${{ vars.AI_MODEL }}
 
           # ── API Keys (GitHub Repository Secrets) ─────────────────────────────
           # Only the key for your chosen AI_PROVIDER is required.

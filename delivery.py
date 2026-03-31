@@ -2,8 +2,10 @@
 delivery.py – Formats curated financial news into a styled HTML email and sends it via Resend.
 """
 
+import html
 import logging
 from datetime import datetime
+
 import resend
 
 logger = logging.getLogger(__name__)
@@ -34,9 +36,9 @@ def _render_market_snapshot(market_data: dict) -> str:
     return f'<div style="display:flex;flex-wrap:wrap;margin:0 -4px;">{"".join(cards)}</div>'
 
 def _render_article(article: dict) -> str:
-    title = article.get("title", "Untitled")
-    summary = article.get("summary", "")
-    link = article.get("link", "#")
+    title = html.escape(article.get("title", "Untitled"))
+    summary = html.escape(article.get("summary", ""))
+    link = html.escape(article.get("link", "#"))
     score = int(article.get("impact_score", 0))
 
     return f"""
@@ -48,7 +50,7 @@ def _render_article(article: dict) -> str:
       <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;">{summary}</p>
     </div>"""
 
-def _build_html_email(curated_data: dict, market_data: dict, topics: str) -> str:
+def _build_html_email(curated_data: dict, market_data: dict, topics: str, ai_provider: str = "gemini") -> str:
     today = datetime.now().strftime("%B %d, %Y")
     sentiment = curated_data.get("market_sentiment", "Neutral")
     summary = curated_data.get("market_summary", "")
@@ -114,7 +116,7 @@ def _build_html_email(curated_data: dict, market_data: dict, topics: str) -> str
             <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #e2e8f0;">
               <p style="margin:0;font-size:12px;color:#94a3b8;">
                 Curated based on: <em>{topics}</em><br><br>
-                Powered by Gemini & yfinance
+                Powered by {ai_provider.capitalize()} &amp; yfinance
               </p>
             </td>
           </tr>
@@ -138,7 +140,8 @@ def send_newsletter(curated_data: dict, market_data: dict, config: dict) -> None
 
     resend.api_key = api_key
     today = datetime.now().strftime("%B %d, %Y")
-    html_body = _build_html_email(curated_data, market_data, topics)
+    ai_provider = config.get("ai_provider", "gemini")
+    html_body = _build_html_email(curated_data, market_data, topics, ai_provider)
 
     logger.info("Sending finance newsletter to %s via Resend...", to_email)
 

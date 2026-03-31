@@ -15,6 +15,11 @@ from scrapling.fetchers import StealthyFetcher
 
 logger = logging.getLogger(__name__)
 
+_JUNK_KEYWORDS = frozenset([
+    "login", "subscribe", "newsletter", "about", "contact",
+    "privacy", "terms", "policy", "author", "video", "podcasts",
+])
+
 
 def _extract_domain(url: str) -> str:
     """Return the bare domain (e.g. 'techcrunch.com') from a full URL."""
@@ -94,9 +99,7 @@ def fetch_news(urls: list[str]) -> list[dict]:
                 any(char.isdigit() for char in path) # Dates or IDs in path
             )
             
-            # Additional check to filter out generic navigation links
-            junk_keywords = ["login", "subscribe", "newsletter", "about", "contact", "privacy", "terms", "policy", "author", "video", "podcasts"]
-            is_junk = any(junk in path for junk in junk_keywords)
+            is_junk = any(junk in path for junk in _JUNK_KEYWORDS)
 
             if is_junk or not is_likely_article:
                 continue

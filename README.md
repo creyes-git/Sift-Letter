@@ -1,96 +1,171 @@
 # 📈 Sift-Letter: Automated AI Finance Newsletter
 
-Sift-Letter is a fully automated pipeline that scrapes top financial news sources, uses Google Gemini AI to curate and summarize market sentiment, and delivers a professional HTML digest directly to your inbox every morning — all for **free**, running on GitHub's servers with no local setup required.
+Sift-Letter is a fully automated pipeline that scrapes top financial news sources, uses an AI model of your choice to curate and summarize market sentiment, and delivers a polished HTML digest directly to your inbox every morning — all for **free**, running entirely on GitHub's servers with no local setup required.
+
+---
+
+## Table of Contents
+
+1. [What It Does](#what-it-does)
+2. [How It Works](#how-it-works)
+3. [Project Structure](#project-structure)
+4. [Prerequisites](#prerequisites)
+   - [Step 0A — Choose Your AI Provider](#step-0a--choose-your-ai-provider)
+   - [Step 0B — Create a Resend Account](#step-0b--create-a-resend-account)
+   - [Step 0C — Create a GitHub Account](#step-0c--create-a-github-account)
+5. [Setup Guide](#setup-guide)
+   - [Step 1 — Fork or Upload the Project to GitHub](#step-1--fork-or-upload-the-project-to-github)
+   - [Step 2 — Add Your API Keys as Secrets](#step-2--add-your-api-keys-as-secrets)
+   - [Step 3 — Add Your Preferences as Variables](#step-3--add-your-preferences-as-variables)
+   - [Step 4 — Enable GitHub Actions](#step-4--enable-github-actions)
+   - [Step 5 — Set Your Delivery Time](#step-5--set-your-delivery-time)
+   - [Step 6 — Run It Manually to Test](#step-6--run-it-manually-to-test)
+6. [Customizing Your Newsletter](#customizing-your-newsletter)
+7. [Troubleshooting](#troubleshooting)
+8. [Costs](#costs)
 
 ---
 
 ## What It Does
 
-Every day at a scheduled time, the pipeline automatically:
+Every morning at the time you choose, the pipeline automatically:
 
-1. Fetches live prices for the S&P 500, Nasdaq, Bitcoin, and the 10-Year Yield
-2. Scrapes financial news from the sources you configure
-3. Sends all articles to Google Gemini, which filters out junk, removes duplicates, categorizes stories, and writes a 2-sentence summary for each one
-4. Delivers a polished HTML email to your inbox with a market sentiment score (Bullish / Bearish / Neutral)
+1. **Fetches live market data** — S&P 500, Nasdaq, Bitcoin, and the 10-Year Treasury Yield
+2. **Scrapes financial news** from the sources you configure
+3. **Curates with AI** — filters out junk, removes duplicate stories, categorizes articles, and writes a 2-sentence summary for each one
+4. **Delivers a polished HTML email** to your inbox with a market sentiment score (Bullish / Bearish / Neutral)
 
-It remembers which articles it already sent you, so you never read the same story twice.
-
----
-
-## What You Need Before Starting
-
-You need accounts for **one AI provider of your choice**, plus Resend for email delivery, and GitHub to run the automation. All have free tiers sufficient for daily use.
+It remembers which articles it already sent you, so you **never read the same story twice**.
 
 ---
 
-### Step 0 — Choose Your AI Provider
+## How It Works
 
-The newsletter supports four AI providers. Pick one and get its API key.
+```
+GitHub Actions (runs on schedule)
+        │
+        ▼
+  main.py  ──────────────────────────────────────────────────────┐
+        │                                                         │
+        ├─► market_data.py   Fetches live prices via yfinance     │
+        │                                                         │
+        ├─► scraper.py       Scrapes article links from your      │
+        │                    configured news sources              │
+        │                                                         │
+        ├─► ai_processor.py  Sends articles + market data to      │
+        │                    your chosen AI provider for          │
+        │                    curation, ranking & summarization    │
+        │                                                         │
+        └─► delivery.py      Builds the HTML email and sends      │
+                             it via Resend to your inbox  ◄───────┘
+```
 
-| Provider | Model Used | Free Tier | Get Your Key |
+The pipeline is stateless — it runs, sends the email, saves a history of sent article URLs to avoid duplicates, and exits. No server, no database, no ongoing cost.
+
+---
+
+## Project Structure
+
+```
+sift-letter/
+├── main.py              # Orchestrator — runs the full pipeline in order
+├── scraper.py           # Fetches and parses article links from news sites
+├── market_data.py       # Fetches live prices for major indices via yfinance
+├── ai_processor.py      # Sends articles to your AI provider for curation
+├── delivery.py          # Builds the HTML email and sends it via Resend
+├── utils.py             # Config loader (reads environment variables)
+├── pyproject.toml       # Python dependencies
+└── .github/
+    └── workflows/
+        └── daily_newsletter.yml   # GitHub Actions workflow (the scheduler)
+```
+
+---
+
+## Prerequisites
+
+Before you start the setup, you need to collect **three things**: an AI API key, a Resend API key, and a GitHub account. This takes about 10 minutes total.
+
+---
+
+### Step 0A — Choose Your AI Provider
+
+The newsletter supports four AI providers. **Pick one** and get its API key. Gemini and Groq are both completely free.
+
+| Provider | Default Model | Free Tier | Get Your Key |
 |---|---|---|---|
-| **Google Gemini** (default) | Gemini 1.5 Flash | ~1,500 req/day | [aistudio.google.com](https://aistudio.google.com/) → Get API Key |
-| **Anthropic Claude** | Claude Haiku | Pay-as-you-go (very cheap) | [console.anthropic.com](https://console.anthropic.com/) → API Keys |
-| **OpenAI** | GPT-4o Mini | Pay-as-you-go (very cheap) | [platform.openai.com](https://platform.openai.com/) → API Keys |
-| **Groq** | Llama 3 70B | Free (rate-limited) | [console.groq.com](https://console.groq.com/) → API Keys |
+| **Google Gemini** ✅ *(recommended)* | `gemini-2.5-flash` | ~1,500 req/day free | [aistudio.google.com](https://aistudio.google.com/) → **Get API Key** |
+| **Groq** ✅ *(free alternative)* | `llama3-70b-8192` | Free (rate-limited) | [console.groq.com](https://console.groq.com/) → **API Keys** |
+| **Anthropic Claude** | `claude-haiku-4-5-20251001` | Pay-as-you-go | [console.anthropic.com](https://console.anthropic.com/) → **API Keys** |
+| **OpenAI** | `gpt-4o-mini` | Pay-as-you-go | [platform.openai.com](https://platform.openai.com/) → **API Keys** |
 
-> Gemini and Groq both have free tiers that comfortably cover one newsletter per day at no cost. Claude and OpenAI charge per token but are extremely cheap for this use case (fractions of a cent per run).
+> **Tip:** If you want zero cost, choose **Gemini** (Google account required) or **Groq** (free account). Claude and OpenAI cost fractions of a cent per run — less than $0.05/month.
 
-After getting your key, note the **Secret Name** you will use in GitHub — it depends on which provider you chose:
+Once you have your key, note which **Secret Name** you will use in GitHub:
 
 | Provider | GitHub Secret Name |
 |---|---|
 | Google Gemini | `GEMINI_API_KEY` |
+| Groq | `GROQ_API_KEY` |
 | Anthropic Claude | `ANTHROPIC_API_KEY` |
 | OpenAI | `OPENAI_API_KEY` |
-| Groq | `GROQ_API_KEY` |
 
 ---
 
-### Resend API Key
-The service that sends the actual email to your inbox.
+### Step 0B — Create a Resend Account
 
-- Go to [https://resend.com/](https://resend.com/) and create a free account
-- Once logged in, go to **API Keys** in the left sidebar → **"Create API Key"**
-- Give it a name (e.g. `sift-letter`) and copy the key
+Resend is the service that actually sends the email to your inbox. It has a generous free tier.
 
-> **Important:** The free tier of Resend only allows you to send emails to the address you signed up with unless you add and verify a custom domain. For personal use, just use your own email address as the recipient.
+1. Go to [https://resend.com/](https://resend.com/) and click **Sign Up**
+2. Verify your email address
+3. In the dashboard, go to **API Keys** in the left sidebar
+4. Click **"Create API Key"**, give it a name like `sift-letter`, and click **Add**
+5. **Copy the key immediately** — it is only shown once
+
+> ⚠️ **Important — Free Tier Restriction:** On Resend's free plan, you can only send emails to the **same email address you signed up with**. This is fine for personal use. If you want to send to a different address, you need to add and verify a custom domain in Resend.
 
 ---
 
-### A GitHub Account
-GitHub is where the code lives and where the automation runs (for free).
+### Step 0C — Create a GitHub Account
+
+GitHub is where the code lives and where the automation runs for free.
 
 - Go to [https://github.com/](https://github.com/) and create an account if you don't have one
+- GitHub Actions gives you **2,000 free minutes per month**. Each newsletter run uses ~3 minutes, so daily use costs ~90 minutes/month — well within the free tier.
 
 ---
 
 ## Setup Guide
 
-### Step 1 — Upload the Project to GitHub
+### Step 1 — Fork or Upload the Project to GitHub
 
-You need to create a GitHub repository and upload all the project files to it.
+You need your own copy of this repository on your GitHub account so you can configure it with your own API keys.
+
+#### Option A — Fork (Recommended if viewing this on GitHub)
+
+1. Click the **Fork** button at the top right of this repository page
+2. Choose your account as the destination
+3. Click **Create fork**
+
+That's it — you now have your own copy at `https://github.com/YOUR_USERNAME/sift-letter`.
+
+#### Option B — Upload manually (if you downloaded the files)
 
 1. Log in to [github.com](https://github.com)
 2. Click the **"+"** icon in the top right → **"New repository"**
-3. Give it a name (e.g. `sift-letter`)
-4. Set it to **Private** (recommended, since it will run automated tasks)
+3. Name it `sift-letter`
+4. Set visibility to **Private** *(recommended — it will contain your automation schedule)*
 5. Click **"Create repository"**
-
-Now upload the files. The easiest way is via the GitHub website:
-
-6. On your new empty repository page, click **"uploading an existing file"**
-7. Drag and drop all the project files into the window
+6. On the empty repository page, click **"uploading an existing file"**
+7. Drag and drop **all** the project files and folders into the window
 8. Click **"Commit changes"**
 
-Alternatively, if you have Git installed on your computer:
+#### Option C — Git command line (if you have Git installed)
 
 ```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/sift-letter.git
+git clone https://github.com/ORIGINAL_OWNER/sift-letter.git
+cd sift-letter
+git remote set-url origin https://github.com/YOUR_USERNAME/sift-letter.git
 git push -u origin main
 ```
 
@@ -98,124 +173,193 @@ git push -u origin main
 
 ### Step 2 — Add Your API Keys as Secrets
 
-GitHub Secrets are encrypted variables that your automation can read but no one can see — not even you after saving them. This is where your sensitive API keys go.
+GitHub Secrets are **encrypted variables** — your automation can read them at runtime, but no one (including you) can view them after saving. This is where your sensitive API keys go.
 
+**How to get there:**
 1. Go to your repository on GitHub
-2. Click **Settings** (the gear icon in the top navigation bar of the repo)
-3. In the left sidebar, click **Secrets and variables** → **Actions**
+2. Click **Settings** *(gear icon in the top navigation bar of the repo — not your profile settings)*
+3. In the left sidebar, scroll down to **Secrets and variables** → click **Actions**
 4. Click the **Secrets** tab
-5. Click **"New repository secret"** and add the following:
+5. Click **"New repository secret"**
 
-**Required for everyone:**
+**Add these secrets:**
 
-| Secret Name | Value |
-|---|---|
-| `RESEND_API_KEY` | Your Resend API key |
+| Secret Name | Value | Required? |
+|---|---|---|
+| `RESEND_API_KEY` | Your Resend API key | ✅ Always |
+| `GEMINI_API_KEY` | Your Google Gemini API key | ✅ If using Gemini |
+| `GROQ_API_KEY` | Your Groq API key | ✅ If using Groq |
+| `ANTHROPIC_API_KEY` | Your Anthropic Claude API key | ✅ If using Claude |
+| `OPENAI_API_KEY` | Your OpenAI API key | ✅ If using OpenAI |
 
-**Required for your chosen AI provider (add only the one you chose):**
+> Only add the key for the **one provider you chose** in Step 0A, plus `RESEND_API_KEY`. You do not need to add the others.
 
-| Secret Name | Value |
-|---|---|
-| `GEMINI_API_KEY` | Your Google Gemini API key |
-| `ANTHROPIC_API_KEY` | Your Anthropic Claude API key |
-| `OPENAI_API_KEY` | Your OpenAI API key |
-| `GROQ_API_KEY` | Your Groq API key |
-
-For each one: paste the name exactly as shown, paste your key as the value, and click **"Add secret"**.
+For each secret: type the name **exactly** as shown, paste your key as the value, and click **"Add secret"**.
 
 ---
 
 ### Step 3 — Add Your Preferences as Variables
 
-Variables store non-sensitive settings. These are visible, so never put API keys here.
+Variables store non-sensitive configuration settings. Unlike Secrets, these are visible after saving — **never put API keys here**.
 
+**How to get there:**
 1. Stay on the same **Secrets and variables → Actions** page
 2. Click the **Variables** tab
-3. Click **"New repository variable"** and add each of the following:
+3. Click **"New repository variable"**
 
-| Variable Name | Example Value | Description |
+**Add these variables:**
+
+| Variable Name | Example Value | Required? | Description |
+|---|---|---|---|
+| `AI_PROVIDER` | `gemini` | ✅ | Which AI to use. Options: `gemini`, `claude`, `openai`, `groq`. Defaults to `gemini` if not set. |
+| `NEWS_SOURCES` | `https://finance.yahoo.com/,https://www.cnbc.com/markets/` | ✅ | Comma-separated list of news URLs to scrape. No spaces between URLs. |
+| `INVESTMENT_FOCUS` | `Tech stocks, AI, S&P 500, Macro` | ✅ | Topics that matter to you. The AI uses this to filter and prioritize articles. |
+| `SUBSCRIBER_EMAIL` | `yourname@gmail.com` | ✅ | Where the newsletter is delivered. Must match your Resend signup email on the free plan. |
+| `AI_MODEL` | `gemini-2.0-flash` | ⬜ Optional | Override the default model for your provider. If empty or invalid, falls back to the provider default automatically. |
+
+**Default models per provider** (used when `AI_MODEL` is not set):
+
+| Provider | Default Model | Other Models You Can Try |
 |---|---|---|
-| `AI_PROVIDER` | `gemini` | Which AI to use: `gemini`, `claude`, `openai`, or `groq` |
-| `NEWS_SOURCES` | `https://finance.yahoo.com/,https://www.cnbc.com/markets/` | Comma-separated list of financial news URLs to scrape |
-| `INVESTMENT_FOCUS` | `Tech stocks, AI, Semiconductors, Macro-economics` | Tells the AI what topics matter to you. The more specific, the better. |
-| `SUBSCRIBER_EMAIL` | `yourname@gmail.com` | The email address where the newsletter will be delivered |
+| `gemini` | `gemini-2.5-flash` | `gemini-2.0-flash`, `gemini-1.5-flash` |
+| `groq` | `llama3-70b-8192` | `mixtral-8x7b-32768`, `llama3-8b-8192` |
+| `claude` | `claude-haiku-4-5-20251001` | `claude-sonnet-4-5-20251001` |
+| `openai` | `gpt-4o-mini` | `gpt-4o`, `gpt-4-turbo` |
 
-> If you don't add `AI_PROVIDER`, it defaults to `gemini`.
+> **Tips for `NEWS_SOURCES`:** Use the homepage or markets section of a site, not individual articles. Recommended starting set:
+> ```
+> https://finance.yahoo.com/,https://www.cnbc.com/markets/,https://www.reuters.com/markets/
+> ```
 
-> **Tip for NEWS_SOURCES:** Separate multiple URLs with commas and no spaces. Good sources include `https://finance.yahoo.com/`, `https://www.cnbc.com/markets/`, and `https://www.reuters.com/markets/`.
+> **Tips for `INVESTMENT_FOCUS`:** Be specific — the more detail you give, the more relevant the curation. Examples:
+> - `S&P 500, dividend stocks, value investing, bonds` — long-term investor
+> - `Crypto, Bitcoin, Ethereum, DeFi, altcoins` — crypto-focused
+> - `Biotech, FDA approvals, clinical trials, healthcare` — healthcare investor
+> - `Tech stocks, AI, semiconductors, FAANG, growth stocks` — tech-focused
 
 ---
 
 ### Step 4 — Enable GitHub Actions
 
-GitHub Actions is the automation system that runs the newsletter on a schedule. It is already configured in the file `.github/workflows/daily_newsletter.yml` that came with the project.
+GitHub Actions is the automation engine that runs the newsletter on a schedule. The workflow file is already included in the project at `.github/workflows/daily_newsletter.yml` — you just need to enable it.
 
 1. Go to your repository on GitHub
-2. Click the **Actions** tab (between "Pull requests" and "Projects" in the top nav)
-3. If you see a yellow banner asking to enable workflows, click **"I understand my workflows, go ahead and enable them"**
+2. Click the **Actions** tab *(in the top navigation bar, between "Pull requests" and "Projects")*
+3. If you see a yellow banner that says **"Workflows aren't being run on this forked repository"**, click **"I understand my workflows, go ahead and enable them"**
 
-That's it. The newsletter will now run automatically every day.
+That's it. The workflow is now active and will run on the configured schedule.
 
 ---
 
-### Step 5 — Run It Manually to Test
+### Step 5 — Set Your Delivery Time
 
-Before waiting until tomorrow, verify that everything works correctly by triggering it manually right now.
+The newsletter is pre-configured to run at **11:00 UTC** (7:00 AM Eastern Time / Miami). If you are in a different timezone, you need to update the schedule.
+
+**How to change it:**
+
+1. In your repository, navigate to `.github/workflows/daily_newsletter.yml`
+2. Click the **pencil icon** (Edit) in the top right of the file view
+3. Find this line near the top:
+   ```yaml
+   - cron: '0 11 * * *'
+   ```
+4. Change the hour (`11`) to match your timezone offset from UTC
+5. Click **"Commit changes"**
+
+**Common timezone references for 7:00 AM delivery:**
+
+| Timezone | UTC Offset (Summer) | UTC Offset (Winter) | Cron Expression |
+|---|---|---|---|
+| Miami / New York (ET) | UTC-4 | UTC-5 | `0 11 * * *` / `0 12 * * *` |
+| Chicago (CT) | UTC-5 | UTC-6 | `0 12 * * *` / `0 13 * * *` |
+| Denver (MT) | UTC-6 | UTC-7 | `0 13 * * *` / `0 14 * * *` |
+| Los Angeles (PT) | UTC-7 | UTC-8 | `0 14 * * *` / `0 15 * * *` |
+| London (BST/GMT) | UTC+1 | UTC+0 | `0 6 * * *` / `0 7 * * *` |
+| Paris / Berlin (CET) | UTC+2 | UTC+1 | `0 5 * * *` / `0 6 * * *` |
+
+> The cron format is: `minute hour day-of-month month day-of-week`. Use [crontab.guru](https://crontab.guru/) to generate any expression you need.
+
+> ⚠️ **Daylight Saving Time:** GitHub Actions uses UTC, which never changes. When your local clock shifts in spring or fall, you need to manually update the cron hour by ±1 to keep the 7 AM delivery time.
+
+---
+
+### Step 6 — Run It Manually to Test
+
+Before waiting until tomorrow morning, trigger a manual run right now to verify everything is configured correctly.
 
 1. Go to the **Actions** tab in your repository
 2. In the left sidebar, click **"Daily Finance Newsletter"**
-3. Click the **"Run workflow"** button on the right side
-4. Leave the dropdown set to `main` and click the green **"Run workflow"** button
+3. Click the **"Run workflow"** dropdown button on the right side
+4. Leave the branch set to `main` and click the green **"Run workflow"** button
 
-A new run will appear in the list. Click on it to watch it in real time. It typically takes 2–4 minutes to complete. When it finishes, check your inbox.
-
-**If it fails:** Click on the failed run, then click on the `run-newsletter` job to see the detailed logs. The most common issues are:
-- A typo in a secret or variable name
-- An API key that was copied incorrectly (check for extra spaces)
-- `SUBSCRIBER_EMAIL` set to an address different from your Resend account email (on the free plan)
-
----
-
-## How the Schedule Works
-
-The newsletter is configured to run at **12:00 UTC** every day. To change this to your local time, you need to edit the schedule in `.github/workflows/daily_newsletter.yml`.
-
-Find this line:
-```yaml
-- cron: '0 12 * * *'
-```
-
-The format is: `minute hour day month weekday`. To run at 7:00 AM Eastern Time (UTC-5), you would use `0 12 * * *`. To run at 7:00 AM Pacific Time (UTC-8), use `0 15 * * *`.
-
-You can use [https://crontab.guru/](https://crontab.guru/) to easily generate the right cron expression for your timezone.
+A new run will appear in the list within a few seconds. Click on it to watch the live logs. It typically takes **2–4 minutes** to complete. When it finishes with a green checkmark ✅, check your inbox.
 
 ---
 
 ## Customizing Your Newsletter
 
 ### Changing News Sources
-Edit the `NEWS_SOURCES` variable in your GitHub repository settings. The scraper works best with news aggregator pages (the homepage or markets section of a site) rather than individual articles. Any site that lists article links on a page will work.
+
+Edit the `NEWS_SOURCES` variable in **Settings → Secrets and variables → Actions → Variables**. The scraper works best with news aggregator pages (a site's homepage or markets section) rather than individual article URLs.
+
+Any site that lists article links on a page will work. Some good options:
+
+```
+https://finance.yahoo.com/
+https://www.cnbc.com/markets/
+https://www.reuters.com/markets/
+https://www.marketwatch.com/
+https://www.bloomberg.com/markets
+https://www.ft.com/markets
+```
 
 ### Changing Your Investment Focus
-Edit the `INVESTMENT_FOCUS` variable. The more specific you are, the more relevant the AI curation will be. For example:
-- `"S&P 500, dividend stocks, value investing"` for a long-term investor
-- `"Crypto, DeFi, Bitcoin, Ethereum"` for a crypto-focused reader
-- `"Biotech, FDA approvals, clinical trials"` for a healthcare investor
+
+Edit the `INVESTMENT_FOCUS` variable. The AI uses this to decide which articles to keep and which to discard. The more specific you are, the more relevant the output.
+
+### Changing the AI Provider or Model
+
+- To switch providers: update the `AI_PROVIDER` variable and add the corresponding API key as a Secret
+- To try a different model: set the `AI_MODEL` variable to any valid model name for your provider. If the name is wrong, the pipeline will log a warning and automatically fall back to the provider's default — the newsletter will still be delivered
+
+### Changing the Delivery Time
+
+Edit the cron expression in `.github/workflows/daily_newsletter.yml` as described in Step 5.
 
 ### Changing the Recipient Email
-Edit the `SUBSCRIBER_EMAIL` variable. Note the Resend free-tier restriction mentioned above.
+
+Edit the `SUBSCRIBER_EMAIL` variable. Remember the Resend free-tier restriction: the recipient must be the same email you used to sign up for Resend, unless you have verified a custom domain.
+
+---
+
+## Troubleshooting
+
+If a run fails, go to **Actions** → click the failed run → click the `run-newsletter` job to see the full logs. Here are the most common issues:
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| `Missing required environment variables` | A Secret or Variable name has a typo, or wasn't added | Double-check all names in Settings → Secrets and variables. Names are case-sensitive. |
+| `Invalid API key` | The key was copied with extra spaces, or is incorrect | Delete the secret and re-add it. Make sure there are no leading/trailing spaces. |
+| Email not received | `SUBSCRIBER_EMAIL` doesn't match your Resend signup email | On the free plan, recipient must match your Resend account email. |
+| `No articles scraped` | The news source blocked the scraper, or the URL is wrong | Try a different URL or add more sources to `NEWS_SOURCES`. |
+| `LLM returned invalid JSON` | The AI model returned a malformed response | This is rare. Re-run the workflow — it usually succeeds on the next attempt. |
+| `Groq model invalid` | The model name in `AI_MODEL` doesn't exist for Groq | The pipeline will auto-retry with the default. Check the logs for the warning message. |
+| Actions tab shows no workflows | Workflows weren't enabled after forking | Go to the Actions tab and click "enable workflows". |
+| Run triggers but nothing happens | The workflow file has a YAML syntax error | Validate `.github/workflows/daily_newsletter.yml` at [yamllint.com](https://www.yamllint.com/). |
 
 ---
 
 ## Costs
 
-| Service | Free Tier | Notes |
-|---|---|---|
-| Google Gemini API | ~1,500 requests/day free | Best free option for the AI step |
-| Anthropic Claude | No free tier | ~$0.001 per newsletter run (Haiku pricing) |
-| OpenAI | No free tier | ~$0.001 per newsletter run (GPT-4o Mini pricing) |
-| Groq | Free (rate-limited) | Best free option if you want an open-source model |
-| Resend | 3,000 emails/month free | Running daily uses ~30 emails/month |
-| GitHub Actions | 2,000 minutes/month free | Each run uses ~3 minutes |
+Everything needed to run this project has a free tier. Running with Gemini or Groq costs **$0**.
 
-Running this project with **Gemini or Groq** costs **$0**. With Claude or OpenAI, expect less than **$0.05/month**.
+| Service | Free Tier | Monthly Usage | Cost |
+|---|---|---|---|
+| **GitHub Actions** | 2,000 min/month | ~90 min/month (daily runs) | **Free** |
+| **Google Gemini API** | ~1,500 req/day | 1 req/day | **Free** |
+| **Groq API** | Free (rate-limited) | 1 req/day | **Free** |
+| **Resend** | 3,000 emails/month | ~30 emails/month | **Free** |
+| **Anthropic Claude** | None | 1 req/day | ~$0.03/month |
+| **OpenAI** | None | 1 req/day | ~$0.03/month |
+
+> All free tiers are sufficient for one newsletter per day with significant headroom to spare.

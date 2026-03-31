@@ -4,9 +4,12 @@ main.py – Orchestrator for the AI Finance Newsletter pipeline.
 
 import logging
 import sys
-import os
-from utils import load_config, load_history, save_history
+
+from ai_processor import curate_news
+from delivery import send_newsletter
 from market_data import fetch_market_snapshot
+from scraper import fetch_news
+from utils import load_config, load_history, save_history
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,7 +41,6 @@ def run() -> None:
     # ── Step 3: Scrape news ────────────────────────────────────────────────
     logger.info("Step 3/5 – Scraping news from %d source(s)…", len(config["urls"]))
     try:
-        from scraper import fetch_news
         raw_articles = fetch_news(config["urls"])
         if not raw_articles:
             logger.warning("No articles scraped. The sources may be empty or blocked.")
@@ -47,7 +49,7 @@ def run() -> None:
         sys.exit(1)
 
     # ── Step 3.5: Filter History ───────────────────────────────────────────
-    sent_urls = load_history()
+    sent_urls = set(load_history())
     if sent_urls and raw_articles:
         original_count = len(raw_articles)
         raw_articles = [a for a in raw_articles if a.get("link") not in sent_urls]
@@ -58,9 +60,8 @@ def run() -> None:
         sys.exit(0)
 
     # ── Step 4: AI curation ────────────────────────────────────────────────
-    logger.info("Step 4/5 – Curating articles with Gemini…")
+    logger.info("Step 4/5 – Curating articles with %s…", config["ai_provider"])
     try:
-        from ai_processor import curate_news
         curated_data = curate_news(raw_articles, config, market_data)
     except Exception as exc:
         logger.error("AI curation failed: %s", exc, exc_info=True)
@@ -69,12 +70,11 @@ def run() -> None:
     # ── Step 5: Send email ─────────────────────────────────────────────────
     logger.info("Step 5/5 – Sending newsletter to %s…", config["subscriber_email"])
     try:
-        from delivery import send_newsletter
         send_newsletter(curated_data, market_data, config)
         
         # Collect URLs for history
         curated_urls = []
-        for cat_name, articles in curated_data.get("categories", {}).items():
+        for _, articles in curated_data.get("categories", {}).items():
             for art in articles:
                 if art.get("link"):
                     curated_urls.append(art["link"])
