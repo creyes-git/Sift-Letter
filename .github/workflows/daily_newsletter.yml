@@ -2,8 +2,9 @@ name: Daily Finance Newsletter
 
 on:
   schedule:
-    # Runs at 12:00 UTC every day. Adjust this cron expression to your timezone.
-    - cron: '0 12 * * *'
+    # Runs at 7:00 AM Eastern Time (Miami) = 11:00 UTC (EDT, UTC-4, Mar–Nov)
+    # In winter (EST, UTC-5, Nov–Mar), change to '0 12 * * *' for 7 AM
+    - cron: '0 11 * * *'
   workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
