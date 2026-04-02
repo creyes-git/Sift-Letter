@@ -5,3 +5,4 @@ __pycache__/
 CLAUDE.md
 GEMINI.md
 .blackboxcli/
+.claude
