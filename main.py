@@ -5,11 +5,11 @@ main.py – Orchestrator for the AI Finance Newsletter pipeline.
 import logging
 import sys
 
-from ai_processor import curate_news
-from delivery import send_newsletter
-from market_data import fetch_market_snapshot
-from scraper import fetch_news
-from utils import load_config, load_history, save_history
+from modules.ai_processor import curate_news
+from modules.delivery import send_newsletter
+from modules.market_data import fetch_market_snapshot
+from modules.scraper import fetch_news
+from modules.utils import load_config, load_history, save_history
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,7 +36,11 @@ def run() -> None:
 
     # ── Step 2: Fetch Market Data ──────────────────────────────────────────
     logger.info("Step 2/5 – Fetching Market Snapshot…")
-    market_data = fetch_market_snapshot()
+    try:
+        market_data = fetch_market_snapshot()
+    except Exception as exc:
+        logger.error("Market data fetching failed: %s", exc)
+        market_data = {}
 
     # ── Step 3: Scrape news ────────────────────────────────────────────────
     logger.info("Step 3/5 – Scraping news from %d source(s)…", len(config["urls"]))
@@ -72,16 +76,12 @@ def run() -> None:
     try:
         send_newsletter(curated_data, market_data, config)
         
-        # Collect URLs for history
-        curated_urls = []
-        for _, articles in curated_data.get("categories", {}).items():
-            for art in articles:
-                if art.get("link"):
-                    curated_urls.append(art["link"])
-                    
-        if curated_urls:
-            save_history(curated_urls)
-            logger.info("Saved %d article URLs to history.", len(curated_urls))
+        # Collect all seen URLs for history to avoid re-processing non-relevant articles
+        processed_urls = [art["link"] for art in raw_articles if art.get("link")]
+        
+        if processed_urls:
+            save_history(processed_urls)
+            logger.info("Saved %d article URLs to history.", len(processed_urls))
             
     except Exception as exc:
         logger.error("Email delivery failed: %s", exc, exc_info=True)

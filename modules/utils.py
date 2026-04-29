@@ -19,7 +19,7 @@ def load_config() -> dict:
     Load configuration directly from environment variables.
     This is designed to run seamlessly in GitHub Actions.
     """
-    provider = os.environ.get("AI_PROVIDER", "gemini").lower()
+    provider = (os.environ.get("AI_PROVIDER", "").strip() or "gemini").lower()
 
     if provider not in _PROVIDER_KEY_ENV:
         raise ValueError(
