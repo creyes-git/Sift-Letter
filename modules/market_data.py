@@ -43,10 +43,10 @@ def fetch_market_snapshot() -> dict:
                     "unit": unit,
                 }
             else:
-                snapshot[name] = {"price": 0.0, "change_pct": 0.0, "unit": unit}
+                snapshot[name] = {"price": None, "change_pct": None, "unit": unit}
         except Exception as exc:
             logger.warning("Could not fetch data for %s (%s): %s", name, ticker, exc)
-            snapshot[name] = {"price": 0.0, "change_pct": 0.0, "unit": unit}
+            snapshot[name] = {"price": None, "change_pct": None, "unit": unit}
             
     logger.info("Market data snapshot fetched successfully.")
     return snapshot

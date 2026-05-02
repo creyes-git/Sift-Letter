@@ -15,6 +15,22 @@ def _sentiment_badge(sentiment: str) -> str:
     icon = "🐂" if sentiment.lower() == "bullish" else "🐻" if sentiment.lower() == "bearish" else "⚖️"
     return f'<span style="background:{color};color:#fff;padding:4px 12px;border-radius:12px;font-size:14px;font-weight:bold;">{icon} {sentiment.upper()}</span>'
 
+def _coerce_impact_score(raw) -> int:
+    """LLMs sometimes return impact_score as '8', '8/10', or null — clamp to [0, 10]."""
+    if raw is None:
+        return 0
+    if isinstance(raw, bool):
+        return 0
+    if isinstance(raw, (int, float)):
+        score = int(raw)
+    else:
+        try:
+            score = int(str(raw).split("/", 1)[0].strip())
+        except (ValueError, AttributeError):
+            return 0
+    return max(0, min(10, score))
+
+
 def _impact_badge(score: int) -> str:
     color = "#dc2626" if score >= 8 else "#d97706" if score >= 5 else "#16a34a"
     return f'<span style="background:{color};color:#fff;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:bold;">IMPACT {score}/10</span>'
@@ -22,18 +38,31 @@ def _impact_badge(score: int) -> str:
 def _render_market_snapshot(market_data: dict) -> str:
     cells = []
     for name, data in market_data.items():
-        price = data.get("price", 0.0)
-        pct = data.get("change_pct", 0.0)
+        price = data.get("price")
+        pct = data.get("change_pct")
         unit = data.get("unit", "$")
-        color = "#16a34a" if pct >= 0 else "#dc2626"
-        sign = "+" if pct >= 0 else ""
-        price_str = f"{price:,.2f}{unit}" if unit == "%" else f"{unit}{price:,.2f}"
+
+        if price is None:
+            price_str = "N/A"
+        elif unit == "%":
+            price_str = f"{price:,.2f}{unit}"
+        else:
+            price_str = f"{unit}{price:,.2f}"
+
+        if pct is None:
+            pct_str = "—"
+            color = "#64748b"
+        else:
+            color = "#16a34a" if pct >= 0 else "#dc2626"
+            sign = "+" if pct >= 0 else ""
+            pct_str = f"{sign}{pct:.2f}%"
+
         cells.append(f"""
         <td style="width:25%;padding:4px;">
           <div style="background:#f8fafc;padding:12px;border-radius:8px;text-align:center;border:1px solid #e2e8f0;">
             <div style="font-size:12px;color:#64748b;font-weight:bold;">{name}</div>
             <div style="font-size:16px;color:#1e293b;font-weight:bold;margin:4px 0;">{price_str}</div>
-            <div style="font-size:13px;color:{color};font-weight:bold;">{sign}{pct:.2f}%</div>
+            <div style="font-size:13px;color:{color};font-weight:bold;">{pct_str}</div>
           </div>
         </td>""")
     return f'<table width="100%" cellpadding="0" cellspacing="0"><tr>{"".join(cells)}</tr></table>'
@@ -42,7 +71,7 @@ def _render_article(article: dict) -> str:
     title = html.escape(article.get("title", "Untitled"))
     summary = html.escape(article.get("summary", ""))
     link = html.escape(article.get("link", "#"))
-    score = int(article.get("impact_score", 0))
+    score = _coerce_impact_score(article.get("impact_score"))
 
     return f"""
     <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #e2e8f0;">
@@ -62,7 +91,7 @@ def _build_html_email(curated_data: dict, market_data: dict, topics: str, today:
     for cat_name, articles in categories.items():
         if not articles:
             continue
-        sorted_articles = sorted(articles, key=lambda a: a.get("impact_score", 0), reverse=True)
+        sorted_articles = sorted(articles, key=lambda a: _coerce_impact_score(a.get("impact_score")), reverse=True)
         articles_html = "".join(_render_article(art) for art in sorted_articles)
         categories_html += f"""
         <h2 style="color:#4f46e5;font-size:18px;margin:30px 0 16px 0;border-bottom:2px solid #e0e7ff;padding-bottom:8px;">
@@ -158,4 +187,10 @@ def send_newsletter(curated_data: dict, market_data: dict, config: dict) -> None
         }
     )
 
-    logger.info("Email sent successfully. Resend response: %s", response)
+    # Resend returns {"id": "..."} on success, or a dict with an "error"/"message"
+    # field on rejection — without raising. Treat anything without an id as a failure
+    # so we don't mark the run as successful (and skip future de-dup) on a silent drop.
+    if not isinstance(response, dict) or not response.get("id"):
+        raise RuntimeError(f"Resend rejected the email: {response}")
+
+    logger.info("Email sent successfully. Resend id: %s", response.get("id"))

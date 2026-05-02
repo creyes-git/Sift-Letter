@@ -26,9 +26,20 @@ _DEFAULT_MODELS: dict[str, str] = {
     "groq":   "llama3-70b-8192",
 }
 
-# Keywords that indicate the API rejected the model name specifically.
-# Used to distinguish "bad model" errors from other API failures.
-_BAD_MODEL_SIGNALS = ("model", "not found", "invalid", "does not exist", "unknown", "404", "unsupported")
+# Phrases that strongly indicate the API rejected the model name specifically
+# (rather than a transient outage / rate limit / context-length error). Kept
+# narrow on purpose: a bare token like "model" matches "model is overloaded"
+# and would trigger an unwanted silent fallback.
+_BAD_MODEL_SIGNALS = (
+    "model not found",
+    "model_not_found",
+    "invalid model",
+    "unknown model",
+    "unsupported model",
+    "model does not exist",
+    "no such model",
+    "is not a valid model",
+)
 
 SYSTEM_PROMPT = """You are an expert financial analyst, portfolio manager, and market commentator.
 Your task is to process a raw list of news article titles and links, alongside the user's investment focus and a snapshot of current market data, and produce a highly professional, curated daily market digest."""

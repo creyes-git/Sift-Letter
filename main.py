@@ -75,17 +75,19 @@ def run() -> None:
     logger.info("Step 5/5 – Sending newsletter to %s…", config["subscriber_email"])
     try:
         send_newsletter(curated_data, market_data, config)
-        
-        # Collect all seen URLs for history to avoid re-processing non-relevant articles
-        processed_urls = [art["link"] for art in raw_articles if art.get("link")]
-        
-        if processed_urls:
-            save_history(processed_urls)
-            logger.info("Saved %d article URLs to history.", len(processed_urls))
-            
     except Exception as exc:
         logger.error("Email delivery failed: %s", exc, exc_info=True)
         sys.exit(1)
+
+    # History save is intentionally outside the delivery try-block so a disk/IO
+    # failure here is not reported as an email failure (the email already went out).
+    processed_urls = [art["link"] for art in raw_articles if art.get("link")]
+    if processed_urls:
+        try:
+            save_history(processed_urls)
+            logger.info("Saved %d article URLs to history.", len(processed_urls))
+        except Exception as exc:
+            logger.error("Failed to update history (email was sent): %s", exc, exc_info=True)
 
     logger.info("=" * 60)
     logger.info("  Newsletter delivered successfully! 🎉")

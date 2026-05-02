@@ -4,7 +4,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-HISTORY_PATH = os.path.join(os.path.dirname(__file__), "history.json")
+# history.json lives at the project root so it matches the path used by the
+# GitHub Actions cache step in .github/workflows/daily_newsletter.yml.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HISTORY_PATH = os.path.join(_PROJECT_ROOT, "history.json")
 
 # Maps each provider name to the environment variable that holds its API key
 _PROVIDER_KEY_ENV = {
